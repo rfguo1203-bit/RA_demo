@@ -5,6 +5,10 @@ description: Run configured BEHAVIOR-1K robot evaluation tasks and produce rollo
 
 # BEHAVIOR Task Runner
 
+Legacy end-to-end runner. Keep this skill as a reference for OpenPI startup,
+BEHAVIOR evaluator arguments, environment variables, and log layout. For the
+phase-1 interactive architecture, prefer `turning-on-radio-interactive`.
+
 Execute a configured BEHAVIOR task end to end. Do not merely print the server and evaluator commands.
 
 ## Workflow

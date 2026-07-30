@@ -1,0 +1,18 @@
+[Unit]
+Description=Qwen3.5 FP8 VLM vLLM server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/path/to/RA_demo/vlm-server
+EnvironmentFile=/path/to/RA_demo/vlm-server/.env
+ExecStart=/bin/bash /path/to/RA_demo/vlm-server/scripts/start_vllm.sh
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=1800
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
+

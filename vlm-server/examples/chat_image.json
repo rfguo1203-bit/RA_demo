@@ -1,0 +1,23 @@
+{
+  "model": "qwen3.5-397b-a17b-fp8",
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "image_url",
+          "image_url": {
+            "url": "data:image/png;base64,REPLACE_WITH_BASE64_IMAGE"
+          }
+        },
+        {
+          "type": "text",
+          "text": "Describe this image in one sentence."
+        }
+      ]
+    }
+  ],
+  "temperature": 0.0,
+  "max_tokens": 256
+}
+

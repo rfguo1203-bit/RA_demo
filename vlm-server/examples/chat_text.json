@@ -1,0 +1,12 @@
+{
+  "model": "qwen3.5-397b-a17b-fp8",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Reply with exactly: vlm-server text example ok"
+    }
+  ],
+  "temperature": 0.0,
+  "max_tokens": 64
+}
+

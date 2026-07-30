@@ -19,6 +19,8 @@ TENSOR_PARALLEL_SIZE="${TENSOR_PARALLEL_SIZE:-8}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-262144}"
 GPU_MEMORY_UTILIZATION="${GPU_MEMORY_UTILIZATION:-0.90}"
 VLLM_LOG_LEVEL="${VLLM_LOG_LEVEL:-INFO}"
+ENABLE_AUTO_TOOL_CHOICE="${ENABLE_AUTO_TOOL_CHOICE:-0}"
+TOOL_CALL_PARSER="${TOOL_CALL_PARSER:-hermes}"
 
 export VLLM_LOG_LEVEL
 
@@ -31,13 +33,20 @@ if [ ! -d "${MODEL_PATH}" ]; then
   exit 1
 fi
 
-exec vllm serve "${MODEL_PATH}" \
-  --host "${VLLM_HOST}" \
-  --port "${VLLM_PORT}" \
-  --served-model-name "${SERVED_MODEL_NAME}" \
-  --tensor-parallel-size "${TENSOR_PARALLEL_SIZE}" \
-  --max-model-len "${MAX_MODEL_LEN}" \
-  --reasoning-parser qwen3 \
-  --trust-remote-code \
+VLLM_ARGS=(
+  serve "${MODEL_PATH}"
+  --host "${VLLM_HOST}"
+  --port "${VLLM_PORT}"
+  --served-model-name "${SERVED_MODEL_NAME}"
+  --tensor-parallel-size "${TENSOR_PARALLEL_SIZE}"
+  --max-model-len "${MAX_MODEL_LEN}"
+  --reasoning-parser qwen3
+  --trust-remote-code
   --gpu-memory-utilization "${GPU_MEMORY_UTILIZATION}"
+)
 
+if [ "${ENABLE_AUTO_TOOL_CHOICE}" = "1" ] || [ "${ENABLE_AUTO_TOOL_CHOICE}" = "true" ]; then
+  VLLM_ARGS+=(--enable-auto-tool-choice --tool-call-parser "${TOOL_CALL_PARSER}")
+fi
+
+exec vllm "${VLLM_ARGS[@]}"

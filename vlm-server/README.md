@@ -78,6 +78,8 @@ VLLM_HOST=0.0.0.0
 VLLM_PORT=8000
 TENSOR_PARALLEL_SIZE=8
 MAX_MODEL_LEN=262144
+ENABLE_AUTO_TOOL_CHOICE=0
+TOOL_CALL_PARSER=hermes
 ```
 
 ## Start vLLM
@@ -103,6 +105,44 @@ vllm serve /srv/data2/g00806422/model_weights \
 
 Do not add `--language-model-only`; this service must keep the vision encoder
 enabled.
+
+## OpenCode Tool Calling
+
+The error below means the client sent OpenAI-style tools with
+`tool_choice: "auto"`, but vLLM was not started with automatic tool-call
+parsing enabled:
+
+```text
+"auto" tool choice requires --enable-auto-tool-choice and --tool-call-parser to be set
+```
+
+If this server is used only as a generic VLM endpoint for Host-side task
+judging, do not send `tools` or `tool_choice: "auto"` in requests.
+
+If you register this server directly as an OpenCode model and OpenCode sends
+tool definitions, enable tool parsing in `.env`:
+
+```bash
+ENABLE_AUTO_TOOL_CHOICE=1
+TOOL_CALL_PARSER=hermes
+```
+
+Then restart:
+
+```bash
+bash scripts/start_server.sh stop
+bash scripts/start_server.sh background
+```
+
+The resulting vLLM command includes:
+
+```bash
+--enable-auto-tool-choice --tool-call-parser hermes
+```
+
+Qwen's vLLM documentation uses the Hermes parser for Qwen3 tool calling:
+
+https://github.com/QwenLM/Qwen3/blob/main/docs/source/framework/function_call.md
 
 For a terminal-managed background process:
 

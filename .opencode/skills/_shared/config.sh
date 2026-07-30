@@ -39,7 +39,7 @@ export INSTANCE_INDICES="${INSTANCE_INDICES:-0}"
 export NUM_ROLLOUTS="${NUM_ROLLOUTS:-1}"
 export MODE="${MODE:-public_test}"
 export MAX_STEPS="${MAX_STEPS:-}"
-export K_STEPS="${K_STEPS:-20}"
+export K_STEPS="${K_STEPS:-800}"
 export MAX_HOST_ROUNDS="${MAX_HOST_ROUNDS:-50}"
 
 # =========================

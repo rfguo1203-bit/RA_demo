@@ -54,7 +54,7 @@ export CONTROL_MODE="${CONTROL_MODE:-receeding_horizon}"
 export MAX_LEN="${MAX_LEN:-32}"
 export POLICY_CONFIG="${POLICY_CONFIG:-pi05_b1k-base}"
 export RADIO_CKPT="${RADIO_CKPT:-$WORK_ROOT/ckpts/sunshk/pi05_turn_on_the_radio_sunshk}"
-export HALLOWEEN_CKPT="${HALLOWEEN_CKPT:-}"
+export HALLOWEEN_CKPT="${HALLOWEEN_CKPT:-${RADIO_CKPT:-$WORK_ROOT/ckpts/putting_away_Halloween_decorations-sft}}"
 
 # =========================
 # Env server

@@ -8,8 +8,8 @@
 
 ## Current Baseline
 
-- 现有旧 skill 位于 `.opencode/skills/behavior-task-runner`。
-- 旧实现通过 `.opencode/skills/behavior-task-runner/scripts/run_behavior_task.sh`：
+- 旧的 end-to-end skill 已移出当前 `.opencode/skills` 目录，仅作为外部参考。
+- 旧实现通过 `run_behavior_task.sh`：
   - 启动 OpenPI VLA server：`uv run scripts/serve_b1k.py ...`
   - 调用 BEHAVIOR evaluator：`python -m omnigibson.eval.eval ...`
   - evaluator 一直循环到 `terminated or truncated`，最后写视频和 JSON。
@@ -42,27 +42,11 @@
 - Env_server: 新增的 BEHAVIOR interactive server，负责环境 session、K-step 推进、成功信号、视频与日志。
 - VLA_server: OpenPI policy server，保持现有启动方式，不改 OpenPI 代码。
 
-## Phase 1 Skills
+## Skills
 
-一阶段建议拆成多个命名 skill。这样 OpenCode 可以把“启动基础设施”“推进环境”“执行具体任务”分开理解，也方便二阶段串联多个任务。
+当前 skill 组织把基础设施、K-step、单任务执行和任务别名分开。Host 负责把“先 A 再 B”排布成多次单任务调用，暂不实现 `behavior-task-sequence`。
 
-### 1. `behavior-task-runner`
-
-现有 legacy skill，保留作参考，不作为新架构的主入口。
-
-职责：
-
-- 保留旧的一次性 rollout 启动方式。
-- 作为 OpenPI VLA server 启动命令、BEHAVIOR evaluator 参数、环境变量和日志组织的参考。
-- 必要时可手动用于对比，但新任务编排不依赖它。
-
-目录：
-
-```text
-.opencode/skills/behavior-task-runner/
-```
-
-### 2. `behavior-vla-server`
+### 1. `behavior-vla-server`
 
 新增基础设施 skill，负责 OpenPI VLA server 生命周期。
 
@@ -94,7 +78,7 @@ bash .opencode/skills/behavior-vla-server/scripts/vla_server.sh status turning_o
 bash .opencode/skills/behavior-vla-server/scripts/vla_server.sh stop turning_on_radio
 ```
 
-### 3. `behavior-env-server`
+### 2. `behavior-env-server`
 
 新增基础设施 skill，负责 BEHAVIOR interactive Env_server 生命周期。
 
@@ -125,7 +109,7 @@ bash .opencode/skills/behavior-env-server/scripts/env_server.sh status turning_o
 bash .opencode/skills/behavior-env-server/scripts/env_server.sh stop turning_on_radio
 ```
 
-### 4. `behavior-k-step`
+### 3. `behavior-k-step`
 
 新增交互 skill，负责让 BEHAVIOR 环境推进 K 步并返回结构化结果。
 
@@ -155,18 +139,41 @@ bash .opencode/skills/behavior-env-server/scripts/env_server.sh stop turning_on_
 bash .opencode/skills/behavior-k-step/scripts/step_k.sh turning_on_radio --k 20
 ```
 
+### 4. `behavior-interactive-task`
+
+新增通用单任务执行 skill，负责把基础设施 skill 组合成“一次完整任务”。
+
+职责：
+
+- 支持 `turning_on_radio` 和 `putting_away_Halloween_decorations`。
+- 启动该任务的 VLA server。
+- 启动该任务的 BEHAVIOR Env_server。
+- 循环调用 `behavior-k-step`。
+- 成功、失败、超时或达到 `MAX_HOST_ROUNDS` 后，先停 Env_server，再停 VLA server。
+- 返回最终 JSON，包含 `success/done/run_dir/video_path/result_path/server_log/env_log`。
+
+建议目录：
+
+```text
+.opencode/skills/behavior-interactive-task/
+```
+
+命令形态：
+
+```bash
+bash .opencode/skills/behavior-interactive-task/scripts/run_task.sh turning_on_radio
+bash .opencode/skills/behavior-interactive-task/scripts/run_task.sh putting_away_Halloween_decorations
+```
+
 ### 5. `turning-on-radio-interactive`
 
-新增任务级 skill，一阶段主入口。
+任务别名 skill。
 
 职责：
 
 - 将“打开收音机”“turn on the radio”“turning_on_radio”映射到 `turning_on_radio`。
-- 调用 `behavior-vla-server` 启动 VLA server。
-- 调用 `behavior-env-server` 启动 BEHAVIOR Env_server。
-- 循环调用 `behavior-k-step`。
-- 根据返回的 `success/done` 决定继续、停止或报告失败。
-- 成功后报告视频、run dir 和日志路径。
+- 调用 `behavior-interactive-task/scripts/run_task.sh turning_on_radio`。
+- 不复制 server 生命周期逻辑。
 
 建议目录：
 
@@ -174,7 +181,15 @@ bash .opencode/skills/behavior-k-step/scripts/step_k.sh turning_on_radio --k 20
 .opencode/skills/turning-on-radio-interactive/
 ```
 
-这个 skill 是一阶段用户请求的默认入口；其他几个 skill 是它会用到的基础能力。
+### 6. `putting-away-halloween-decorations-interactive`
+
+任务别名 skill。
+
+职责：
+
+- 将“收起万圣节装饰”和 `putting_away_Halloween_decorations` 映射到 `putting_away_Halloween_decorations`。
+- 调用 `behavior-interactive-task/scripts/run_task.sh putting_away_Halloween_decorations`。
+- 不复制 server 生命周期逻辑。
 
 ## Minimal Host Contract
 
@@ -183,12 +198,8 @@ OpenCode skill 只依赖稳定 CLI/JSON，不理解 BEHAVIOR 内部状态。
 推荐命令：
 
 ```bash
-bash .opencode/skills/behavior-vla-server/scripts/vla_server.sh start turning_on_radio
-bash .opencode/skills/behavior-env-server/scripts/env_server.sh start turning_on_radio
-bash .opencode/skills/behavior-k-step/scripts/step_k.sh turning_on_radio --k 20
-bash .opencode/skills/behavior-env-server/scripts/env_server.sh status turning_on_radio
-bash .opencode/skills/behavior-env-server/scripts/env_server.sh stop turning_on_radio
-bash .opencode/skills/behavior-vla-server/scripts/vla_server.sh stop turning_on_radio
+bash .opencode/skills/behavior-interactive-task/scripts/run_task.sh turning_on_radio
+bash .opencode/skills/behavior-interactive-task/scripts/run_task.sh putting_away_Halloween_decorations
 ```
 
 每个命令输出 JSON。核心字段：
@@ -224,13 +235,13 @@ bash .opencode/skills/behavior-vla-server/scripts/vla_server.sh stop turning_on_
 }
 ```
 
-## Phase 1 Scope
+## Phase 2 Scope
 
-### 1. Preserve old runner
+### 1. Preserve foundation skills
 
-- 保留 `.opencode/skills/behavior-task-runner/scripts/run_behavior_task.sh`。
-- 在文档中标注它是 legacy end-to-end runner。
-- 新交互式实现不要复用它的长 while loop，只复用启动配置和环境变量。
+- 保留 `behavior-vla-server`、`behavior-env-server`、`behavior-k-step`。
+- 不实现 `behavior-task-sequence`。
+- Host 自己负责先调用 radio，再调用 Halloween。
 
 ### 2. Add task config
 
@@ -246,12 +257,8 @@ bash .opencode/skills/behavior-vla-server/scripts/vla_server.sh stop turning_on_
 - `ENV_SERVER_PORT`
 - `K_STEPS`
 - `MAX_HOST_ROUNDS`
-- `turning_on_radio` checkpoint mapping
-
-二阶段预留：
-
 - `putting_away_Halloween_decorations` task name
-- 对应 checkpoint path
+- `putting_away_Halloween_decorations` checkpoint path
 - 可能的 instance indices 和 task-specific 参数
 
 ### 3. Add `behavior-vla-server`
@@ -342,31 +349,30 @@ $WORK_ROOT/logs/behavior_interactive/<task_name>/<session_id>/
 - 原样输出 Env_server 返回的 JSON。
 - 遇到 Env_server 未启动或不健康，返回短错误和日志路径。
 
-### 7. Add `turning-on-radio-interactive`
+### 7. Add task aliases
 
-新增任务级主 skill：
+任务别名 skill：
 
 - `.opencode/skills/turning-on-radio-interactive/SKILL.md`
+- `.opencode/skills/putting-away-halloween-decorations-interactive/SKILL.md`
 
 OpenCode 执行逻辑：
 
-1. 用户请求 `turning_on_radio` 或“打开收音机”时，先调用 `behavior-vla-server`。
-2. 再调用 `behavior-env-server`。
-3. 循环调用 `behavior-k-step`。
-3. 如果 JSON 中 `success=true`，调用 `stop` 并报告结果。
-4. 如果 `done=true` 但 `success=false`，停止并报告任务失败或超时。
-5. 如果达到 `MAX_HOST_ROUNDS` 仍未成功，停止并报告未完成。
-6. 清理顺序为先停 Env_server，再停 VLA_server。
+1. 用户请求单任务时，别名 skill 调用 `behavior-interactive-task`。
+2. 用户请求“打开收音机，然后收起万圣节装饰”时，Host 顺序调用两个任务别名或两次通用 runner。
+3. 第一个任务 `success=true` 后再开始第二个任务。
+4. 如果第一个任务失败，不启动第二个任务。
 
 ## Phase 1 Deliverables
 
 - `AGENTS.md`：项目职责和约束。
 - `plan.md`：本计划。
-- `.opencode/skills/behavior-task-runner/`：保留 legacy runner。
 - `.opencode/skills/behavior-vla-server/`：新增 VLA server 管理 skill。
 - `.opencode/skills/behavior-env-server/`：新增 BEHAVIOR Env_server 管理 skill。
 - `.opencode/skills/behavior-k-step/`：新增 K-step 交互 skill。
-- `.opencode/skills/turning-on-radio-interactive/`：新增一阶段任务级主 skill。
+- `.opencode/skills/behavior-interactive-task/`：新增通用单任务 runner。
+- `.opencode/skills/turning-on-radio-interactive/`：radio 任务别名。
+- `.opencode/skills/putting-away-halloween-decorations-interactive/`：Halloween 任务别名。
 - 共享配置文件：可先复用 legacy `config.sh`，也可后续抽到 `.opencode/skills/_shared/config.sh`，以实际 OpenCode skill 发现规则为准。
 - `../BEHAVIOR-1K/OmniGibson/omnigibson/eval/interactive_server.py`：新增 BEHAVIOR Env_server。
 
@@ -379,14 +385,14 @@ OpenCode 执行逻辑：
 
 ## Recommended Implementation Order
 
-1. 保留并标注 `behavior-task-runner` 为 legacy/reference。
-2. 抽出共享配置，或确定多个 skill 如何引用 legacy `config.sh`。
+1. 抽出共享配置。
 3. 新增 `interactive_server.py`，复用 `eval.py` 的 cfg 构造逻辑和 `Evaluator`。
 4. 接入 `start/step/status/stop` HTTP API。
 5. 实现 `behavior-vla-server` skill。
 6. 实现 `behavior-env-server` skill。
 7. 实现 `behavior-k-step` skill。
-8. 实现 `turning-on-radio-interactive` task skill。
-9. 为 `turning_on_radio` 接入 checkpoint mapping。
-10. 静态检查文件路径、命令参数和 JSON 契约。
-11. 交给服务器运行验证，根据实际错误迭代。
+8. 实现 `behavior-interactive-task` 通用单任务 runner。
+9. 实现 `turning-on-radio-interactive` 和 `putting-away-halloween-decorations-interactive` 两个任务别名。
+10. 为 `turning_on_radio` 和 `putting_away_Halloween_decorations` 接入 checkpoint mapping。
+11. 静态检查文件路径、命令参数和 JSON 契约。
+12. 交给服务器运行验证，根据实际错误迭代。

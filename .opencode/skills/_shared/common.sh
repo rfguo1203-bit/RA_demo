@@ -48,9 +48,23 @@ canonical_task_name() {
   esac
 }
 
+task_display_name() {
+  case "${1:-}" in
+    turning_on_radio)
+      printf 'turning on radio\n'
+      ;;
+    putting_away_Halloween_decorations)
+      printf 'putting away Halloween decorations\n'
+      ;;
+    *)
+      printf '%s\n' "${1:-unknown}"
+      ;;
+  esac
+}
+
 resolve_task_config() {
   TASK_NAME="$(canonical_task_name "$1")" || {
-    json_error "${1:-unknown}" "Unsupported task. Configured phase-1 task: turning_on_radio"
+    json_error "${1:-unknown}" "Unsupported task. Configured tasks: turning_on_radio, putting_away_Halloween_decorations"
     exit 1
   }
 

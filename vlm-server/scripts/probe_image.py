@@ -62,7 +62,8 @@ def main() -> int:
             }
         ],
         "temperature": 0.0,
-        "max_tokens": 256,
+        "max_tokens": 512,
+        "chat_template_kwargs": {"enable_thinking": False},
     }
 
     request = urllib.request.Request(

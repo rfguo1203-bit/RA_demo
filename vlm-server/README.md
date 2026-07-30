@@ -147,6 +147,23 @@ python vlm-server/scripts/test_remote_server.py \
   --image /path/to/test.png
 ```
 
+The remote test script disables Qwen thinking mode by default with:
+
+```json
+{"chat_template_kwargs": {"enable_thinking": false}}
+```
+
+Without this, Qwen3.5 may return only the OpenAI-compatible `reasoning` field
+while `content` is still `null`, especially when `max_tokens` is too small for
+both reasoning and the final answer. To test reasoning mode explicitly, pass:
+
+```bash
+python vlm-server/scripts/test_remote_server.py \
+  --base-url http://<vlm-server-ip>:8000/v1 \
+  --enable-thinking \
+  --max-tokens 2048
+```
+
 If the client/Host server reaches the H100 server through SSH, keep vLLM bound
 to the H100 machine and open a local tunnel from the client:
 

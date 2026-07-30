@@ -41,11 +41,22 @@ def image_data_url(path: str) -> str:
     return f"data:{mime_type};base64,{encoded}"
 
 
+def add_thinking_control(payload: dict, enable_thinking: bool) -> dict:
+    payload["chat_template_kwargs"] = {"enable_thinking": enable_thinking}
+    return payload
+
+
 def print_choice(label: str, response: dict) -> None:
     choice = response.get("choices", [{}])[0]
     message = choice.get("message", {})
     print(f"\n[{label}]")
     print(json.dumps(message, ensure_ascii=False, indent=2))
+    if message.get("content") is None and message.get("reasoning"):
+        print(
+            "note: content is null because the model returned reasoning without a "
+            "final answer. Use the default thinking-disabled mode or increase "
+            "--max-tokens when --enable-thinking is set."
+        )
 
 
 def main() -> int:
@@ -65,6 +76,12 @@ def main() -> int:
     parser.add_argument("--api-key", default="EMPTY")
     parser.add_argument("--image", help="Optional local image path for VLM test.")
     parser.add_argument("--timeout", type=int, default=180)
+    parser.add_argument("--max-tokens", type=int, default=512)
+    parser.add_argument(
+        "--enable-thinking",
+        action="store_true",
+        help="Enable Qwen thinking/reasoning mode. Disabled by default for probes.",
+    )
     args = parser.parse_args()
 
     base_url = args.base_url.rstrip("/")
@@ -74,8 +91,7 @@ def main() -> int:
         print("[models]")
         print(json.dumps(models, ensure_ascii=False, indent=2))
 
-        text_response = post_json(
-            f"{base_url}/chat/completions",
+        text_payload = add_thinking_control(
             {
                 "model": args.model,
                 "messages": [
@@ -85,16 +101,20 @@ def main() -> int:
                     }
                 ],
                 "temperature": 0.0,
-                "max_tokens": 64,
+                "max_tokens": args.max_tokens,
             },
+            args.enable_thinking,
+        )
+        text_response = post_json(
+            f"{base_url}/chat/completions",
+            text_payload,
             args.api_key,
             args.timeout,
         )
         print_choice("text chat", text_response)
 
         if args.image:
-            image_response = post_json(
-                f"{base_url}/chat/completions",
+            image_payload = add_thinking_control(
                 {
                     "model": args.model,
                     "messages": [
@@ -113,8 +133,13 @@ def main() -> int:
                         }
                     ],
                     "temperature": 0.0,
-                    "max_tokens": 256,
+                    "max_tokens": args.max_tokens,
                 },
+                args.enable_thinking,
+            )
+            image_response = post_json(
+                f"{base_url}/chat/completions",
+                image_payload,
                 args.api_key,
                 args.timeout,
             )
@@ -132,4 +157,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

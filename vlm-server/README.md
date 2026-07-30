@@ -147,6 +147,21 @@ python vlm-server/scripts/test_remote_server.py \
   --image /path/to/test.png
 ```
 
+If the client/Host server reaches the H100 server through SSH, keep vLLM bound
+to the H100 machine and open a local tunnel from the client:
+
+```bash
+bash vlm-server/scripts/open_ssh_tunnel.sh user@10.160.124.xx 18000 8000
+```
+
+Then call the VLM service through the client-side local port:
+
+```bash
+python vlm-server/scripts/test_remote_server.py \
+  --base-url http://127.0.0.1:18000/v1 \
+  --image /path/to/test.png
+```
+
 ## Host Contract
 
 The Host calls the vLLM endpoint directly:

@@ -19,6 +19,8 @@ TENSOR_PARALLEL_SIZE="${TENSOR_PARALLEL_SIZE:-8}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-262144}"
 GPU_MEMORY_UTILIZATION="${GPU_MEMORY_UTILIZATION:-0.90}"
 VLLM_LOG_LEVEL="${VLLM_LOG_LEVEL:-INFO}"
+REASONING_PARSER="${REASONING_PARSER:-qwen3}"
+DEFAULT_CHAT_TEMPLATE_KWARGS="${DEFAULT_CHAT_TEMPLATE_KWARGS:-}"
 ENABLE_AUTO_TOOL_CHOICE="${ENABLE_AUTO_TOOL_CHOICE:-0}"
 TOOL_CALL_PARSER="${TOOL_CALL_PARSER:-hermes}"
 
@@ -40,10 +42,14 @@ VLLM_ARGS=(
   --served-model-name "${SERVED_MODEL_NAME}"
   --tensor-parallel-size "${TENSOR_PARALLEL_SIZE}"
   --max-model-len "${MAX_MODEL_LEN}"
-  --reasoning-parser qwen3
+  --reasoning-parser "${REASONING_PARSER}"
   --trust-remote-code
   --gpu-memory-utilization "${GPU_MEMORY_UTILIZATION}"
 )
+
+if [ -n "${DEFAULT_CHAT_TEMPLATE_KWARGS}" ]; then
+  VLLM_ARGS+=(--default-chat-template-kwargs "${DEFAULT_CHAT_TEMPLATE_KWARGS}")
+fi
 
 if [ "${ENABLE_AUTO_TOOL_CHOICE}" = "1" ] || [ "${ENABLE_AUTO_TOOL_CHOICE}" = "true" ]; then
   VLLM_ARGS+=(--enable-auto-tool-choice --tool-call-parser "${TOOL_CALL_PARSER}")

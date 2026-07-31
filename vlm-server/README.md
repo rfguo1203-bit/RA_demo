@@ -32,6 +32,7 @@ vlm-server/
     healthcheck.sh
     probe_text.py
     probe_image.py
+    probe_tool_call.py
     test_remote_server.py
   examples/
     chat_text.json
@@ -78,6 +79,8 @@ VLLM_HOST=0.0.0.0
 VLLM_PORT=8000
 TENSOR_PARALLEL_SIZE=8
 MAX_MODEL_LEN=262144
+REASONING_PARSER=qwen3
+DEFAULT_CHAT_TEMPLATE_KWARGS={"enable_thinking": false}
 ENABLE_AUTO_TOOL_CHOICE=0
 TOOL_CALL_PARSER=hermes
 ```
@@ -105,6 +108,11 @@ vllm serve /srv/data2/g00806422/model_weights \
 
 Do not add `--language-model-only`; this service must keep the vision encoder
 enabled.
+
+`DEFAULT_CHAT_TEMPLATE_KWARGS` disables Qwen thinking mode server-wide. This is
+useful for OpenAI-compatible clients that cannot attach Qwen-specific
+`chat_template_kwargs` to each request. Without it, the model may return
+thinking text in the `reasoning` field while `message.content` stays empty.
 
 ## OpenCode Tool Calling
 
@@ -139,6 +147,23 @@ The resulting vLLM command includes:
 ```bash
 --enable-auto-tool-choice --tool-call-parser hermes
 ```
+
+Verify tool-call parsing without OpenCode:
+
+```bash
+python scripts/probe_tool_call.py
+```
+
+From a client/Host server through an SSH tunnel:
+
+```bash
+python vlm-server/scripts/probe_tool_call.py \
+  --base-url http://127.0.0.1:18000/v1
+```
+
+The expected response has `finish_reason: "tool_calls"` and a non-empty
+`tool_calls` array. If it only has `reasoning` or empty `content`, OpenCode
+will show thought but will not run `ls`.
 
 Qwen's vLLM documentation uses the Hermes parser for Qwen3 tool calling:
 

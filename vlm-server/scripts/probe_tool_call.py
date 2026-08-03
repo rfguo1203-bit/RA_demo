@@ -60,7 +60,7 @@ def main() -> int:
             {
                 "role": "user",
                 "content": (
-                    "Use the available tool to list the current directory. "
+                    "Use the available tool to list directory '.'. "
                     "Do not answer in natural language before calling the tool."
                 ),
             }
@@ -70,12 +70,19 @@ def main() -> int:
                 "type": "function",
                 "function": {
                     "name": "list_current_directory",
-                    "description": "List file names in the current working directory.",
+                    "description": "List file names in a directory.",
                     "parameters": {
                         "type": "object",
-                        "properties": {},
+                        "properties": {
+                            "path": {
+                                "type": "string",
+                                "description": "Directory path to list.",
+                            }
+                        },
+                        "required": ["path"],
                         "additionalProperties": False,
                     },
+                    "strict": True,
                 },
             }
         ],

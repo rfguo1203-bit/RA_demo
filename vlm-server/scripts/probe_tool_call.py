@@ -76,6 +76,7 @@ def main() -> int:
                         "properties": {},
                         "additionalProperties": False,
                     },
+                    "strict": True,
                 },
             }
         ],
@@ -114,11 +115,24 @@ def main() -> int:
     ))
 
     if not message.get("tool_calls"):
-        print(
-            "\nNo tool_calls were returned. Check that vLLM was restarted with "
-            "ENABLE_AUTO_TOOL_CHOICE=1 and TOOL_CALL_PARSER=hermes.",
-            file=sys.stderr,
-        )
+        content = message.get("content") or ""
+        if "<tool_call>" in content and "<function=" in content:
+            print(
+                "\nThe model emitted a malformed Hermes tool call. vLLM's Hermes "
+                "parser expects JSON inside <tool_call>, for example:\n"
+                '<tool_call>{"name":"list_current_directory","arguments":{}}</tool_call>\n'
+                "but the model returned XML-like <function=...> content instead. "
+                "Verify that the served model/tokenizer chat template supports "
+                "Hermes/Qwen tool calling, or start vLLM with the parser/template "
+                "that matches this model.",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                "\nNo tool_calls were returned. Check that vLLM was restarted with "
+                "ENABLE_AUTO_TOOL_CHOICE=1 and TOOL_CALL_PARSER=hermes.",
+                file=sys.stderr,
+            )
         return 2
 
     return 0

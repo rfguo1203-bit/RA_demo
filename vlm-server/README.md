@@ -165,6 +165,27 @@ The expected response has `finish_reason: "tool_calls"` and a non-empty
 `tool_calls` array. If it only has `reasoning` or empty `content`, OpenCode
 will show thought but will not run `ls`.
 
+If vLLM logs `Error in extracting tool call from response` from
+`hermes_tool_parser.py` and the probe response contains content like:
+
+```xml
+<tool_call>
+<function=list_current_directory>
+</function>
+</tool_call>
+```
+
+then automatic tool parsing is enabled, but the model output does not match the
+Hermes parser format. Hermes expects JSON inside the tag:
+
+```text
+<tool_call>{"name":"list_current_directory","arguments":{}}</tool_call>
+```
+
+In that case, check the served model's `tokenizer_config.json` / chat template
+and use a vLLM tool parser or explicit `--chat-template` that matches the
+model's native tool-call format.
+
 Qwen's vLLM documentation uses the Hermes parser for Qwen3 tool calling:
 
 https://github.com/QwenLM/Qwen3/blob/main/docs/source/framework/function_call.md

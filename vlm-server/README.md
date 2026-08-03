@@ -80,7 +80,6 @@ VLLM_PORT=8000
 TENSOR_PARALLEL_SIZE=8
 MAX_MODEL_LEN=262144
 REASONING_PARSER=qwen3
-CHAT_TEMPLATE=tool_use
 DEFAULT_CHAT_TEMPLATE_KWARGS={"enable_thinking": false}
 ENABLE_AUTO_TOOL_CHOICE=0
 TOOL_CALL_PARSER=hermes
@@ -134,7 +133,6 @@ tool definitions, enable tool parsing in `.env`:
 ```bash
 ENABLE_AUTO_TOOL_CHOICE=1
 TOOL_CALL_PARSER=hermes
-CHAT_TEMPLATE=tool_use
 ```
 
 Then restart:

@@ -5,10 +5,10 @@ SERVED_MODEL_NAME=deepseek-v4-flash-0731
 
 # Point this at the vLLM executable in the DeepSeek-specific environment.
 # Replace this placeholder after creating that environment on the server.
-VLLM_BIN=/path/to/deepseek-vllm/bin/vllm
+VLLM_BIN=/root/g00806422/embodiment/RA_demo/vlm-server
 
 VLLM_HOST=0.0.0.0
-VLLM_PORT=8000
+VLLM_PORT=8128
 
 # Baseline configuration for 8 x H100.
 TENSOR_PARALLEL_SIZE=8
@@ -32,5 +32,5 @@ TOOL_CALL_PARSER=deepseek_v4
 DEFAULT_CHAT_TEMPLATE_KWARGS='{"thinking":true,"reasoning_effort":"high"}'
 
 # Client/probe settings.
-VLLM_BASE_URL=http://127.0.0.1:8000/v1
+VLLM_BASE_URL=http://127.0.0.1:8128/v1
 VLLM_API_KEY=EMPTY

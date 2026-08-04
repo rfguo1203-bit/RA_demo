@@ -43,7 +43,7 @@ from pathlib import Path
 from typing import Any
 
 
-DEFAULT_BASE_URL = "http://127.0.0.1:8000/v1"
+DEFAULT_BASE_URL = "http://127.0.0.1:18128/v1"
 DEFAULT_MODEL = "qwen3.5-397b-a17b-fp8"
 
 

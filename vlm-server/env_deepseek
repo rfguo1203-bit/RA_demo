@@ -5,7 +5,7 @@ SERVED_MODEL_NAME=deepseek-v4-flash-0731
 
 # Point this at the vLLM executable in the DeepSeek-specific environment.
 # Replace this placeholder after creating that environment on the server.
-VLLM_BIN=/root/g00806422/embodiment/RA_demo/vlm-server
+VLLM_BIN=/root/g00806422/embodiment/RA_demo/vlm-server/.venv_ds/bin/vllm
 
 VLLM_HOST=0.0.0.0
 VLLM_PORT=8128

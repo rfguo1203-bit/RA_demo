@@ -32,6 +32,7 @@ vlm-server/
     healthcheck.sh
     probe_text.py
     probe_image.py
+    query_image.py
     probe_tool_call.py
     test_remote_server.py
   examples/
@@ -215,6 +216,36 @@ python scripts/probe_image.py --image /path/to/test.png
 `probe_image.py` sends an OpenAI-compatible multimodal message with an inline
 base64 data URL. This is the same message shape the Host should use for
 BEHAVIOR observations.
+
+## OpenCode Image Understanding Tool
+
+`scripts/query_image.py` is the small command-line interface intended for an
+OpenCode tool definition. It accepts exactly one local image and one prompt,
+calls the deployed VLM, and writes only the model's final text response to
+standard output. Errors are written to standard error and return a non-zero
+exit code, so the Host can distinguish a request failure from a model answer.
+
+```bash
+python vlm-server/scripts/query_image.py \
+  --image /path/to/observation.png \
+  --prompt 'Describe the robot state and the next useful action.'
+```
+
+It reads `VLLM_BASE_URL`, `SERVED_MODEL_NAME`, and `VLLM_API_KEY` from
+`vlm-server/.env` (or the environment). When calling the VLM through a tunnel,
+override the endpoint explicitly:
+
+```bash
+python vlm-server/scripts/query_image.py \
+  --base-url http://127.0.0.1:18000/v1 \
+  --image /path/to/observation.png \
+  --prompt 'Is the radio switched on? Reply with evidence from the image.'
+```
+
+Thinking is enabled by default. Use a sufficiently large response budget (for
+example, `--max-tokens 2048`) so the model has room for both reasoning and a
+final answer. If the Host only needs a concise final answer, pass
+`--disable-thinking`.
 
 ## Test From Another Server
 

@@ -51,7 +51,18 @@ def main() -> int:
     )
     parser.add_argument("--api-key", default=os.environ.get("VLLM_API_KEY", "EMPTY"))
     parser.add_argument("--timeout", type=int, default=180)
-    parser.add_argument("--max-tokens", type=int, default=512)
+    parser.add_argument("--max-tokens", type=int, default=4096)
+    parser.add_argument(
+        "--chat-template-kwargs",
+        default=os.environ.get(
+            "PROBE_CHAT_TEMPLATE_KWARGS",
+            os.environ.get("DEFAULT_CHAT_TEMPLATE_KWARGS", ""),
+        ),
+        help=(
+            "JSON object passed as chat_template_kwargs. Defaults to "
+            "PROBE_CHAT_TEMPLATE_KWARGS or DEFAULT_CHAT_TEMPLATE_KWARGS."
+        ),
+    )
     args = parser.parse_args()
 
     payload = {
@@ -83,8 +94,18 @@ def main() -> int:
         "tool_choice": "auto",
         "temperature": 0.0,
         "max_tokens": args.max_tokens,
-        "chat_template_kwargs": {"enable_thinking": False},
     }
+
+    if args.chat_template_kwargs:
+        try:
+            chat_template_kwargs = json.loads(args.chat_template_kwargs)
+        except json.JSONDecodeError as exc:
+            print(f"invalid --chat-template-kwargs JSON: {exc}", file=sys.stderr)
+            return 2
+        if not isinstance(chat_template_kwargs, dict):
+            print("--chat-template-kwargs must decode to a JSON object", file=sys.stderr)
+            return 2
+        payload["chat_template_kwargs"] = chat_template_kwargs
 
     try:
         response = post_json(
@@ -130,7 +151,7 @@ def main() -> int:
         else:
             print(
                 "\nNo tool_calls were returned. Check that vLLM was restarted with "
-                "ENABLE_AUTO_TOOL_CHOICE=1 and TOOL_CALL_PARSER=hermes.",
+                "ENABLE_AUTO_TOOL_CHOICE=1 and a TOOL_CALL_PARSER matching the model.",
                 file=sys.stderr,
             )
         return 2

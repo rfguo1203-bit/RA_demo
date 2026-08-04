@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import os
+import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -25,6 +26,14 @@ def main() -> int:
     base_url = os.environ.get("VLLM_BASE_URL", "http://127.0.0.1:8000/v1").rstrip("/")
     model = os.environ.get("SERVED_MODEL_NAME", "qwen3.5-397b-a17b-fp8")
     api_key = os.environ.get("VLLM_API_KEY", "EMPTY")
+    raw_chat_template_kwargs = os.environ.get(
+        "DEFAULT_CHAT_TEMPLATE_KWARGS", '{"enable_thinking":true}'
+    )
+    try:
+        chat_template_kwargs = json.loads(raw_chat_template_kwargs)
+    except json.JSONDecodeError as exc:
+        print(f"invalid DEFAULT_CHAT_TEMPLATE_KWARGS JSON: {exc}", file=sys.stderr)
+        return 2
 
     payload = {
         "model": model,
@@ -35,8 +44,8 @@ def main() -> int:
             }
         ],
         "temperature": 0.0,
-        "max_tokens": 512,
-        "chat_template_kwargs": {"enable_thinking": False},
+        "max_tokens": 2048,
+        "chat_template_kwargs": chat_template_kwargs,
     }
 
     request = urllib.request.Request(

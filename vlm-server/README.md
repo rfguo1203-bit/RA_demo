@@ -1,9 +1,9 @@
 # vlm-server
 
-`vlm-server` deploys `Qwen3.5-397B-A17B-FP8` as a general OpenAI-compatible
-vision-language chat service. It does not contain task-specific prompts or
-BEHAVIOR success judging logic. The Host/OpenCode side is responsible for
-building prompts, sending observations, and interpreting responses.
+`vlm-server` deploys either `Qwen3.5-397B-A17B-FP8` or
+`DeepSeek-V4-Flash-0731` behind an OpenAI-compatible chat API. Qwen provides
+vision-language input; DeepSeek is a text-only OpenCode/tool-calling model.
+The selected `.env` file controls which model is served.
 
 ## Target Runtime
 
@@ -25,6 +25,7 @@ https://huggingface.co/Qwen/Qwen3.5-397B-A17B-FP8
 ```text
 vlm-server/
   env.example
+  env.deepseek.example
   scripts/
     install_vllm.sh
     start_server.sh
@@ -81,10 +82,61 @@ VLLM_PORT=8000
 TENSOR_PARALLEL_SIZE=8
 MAX_MODEL_LEN=262144
 REASONING_PARSER=qwen3
-DEFAULT_CHAT_TEMPLATE_KWARGS={"enable_thinking": false}
+DEFAULT_CHAT_TEMPLATE_KWARGS='{"enable_thinking":true}'
 ENABLE_AUTO_TOOL_CHOICE=0
 TOOL_CALL_PARSER=hermes
 ```
+
+### Switch to DeepSeek-V4-Flash-0731
+
+`env.deepseek.example` contains the DeepSeek-specific tokenizer, reasoning
+parser, tool-call parser, and H100 launch settings. Before using it, set
+`MODEL_PATH` and point `VLLM_BIN` at the executable in the server-side vLLM
+environment prepared for DeepSeek.
+
+Preserve the working Qwen configuration once:
+
+```bash
+cp .env .env.qwen
+```
+
+Then stop the current service, activate the DeepSeek profile, and restart:
+
+```bash
+bash scripts/start_server.sh stop
+cp env.deepseek.example .env
+bash scripts/start_server.sh background
+```
+
+Switch back without changing the Qwen profile:
+
+```bash
+bash scripts/start_server.sh stop
+cp .env.qwen .env
+bash scripts/start_server.sh background
+```
+
+DeepSeek uses the following model-specific vLLM arguments:
+
+```text
+--tokenizer-mode deepseek_v4
+--reasoning-parser deepseek_v4
+--tool-call-parser deepseek_v4
+--enable-auto-tool-choice
+--kv-cache-dtype fp8
+--block-size 256
+--enable-expert-parallel
+```
+
+Thinking is enabled at `high` effort in the DeepSeek profile. The initial
+profile uses a 262144-token context and does not enable `max` effort or DSpark
+speculative decoding. Those can be tuned later without changing the model
+switching interface.
+
+References:
+
+- [DeepSeek-V4-Flash-0731 model card](https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash-0731)
+- [vLLM DeepSeek-V4-Flash recipe](https://recipes.vllm.ai/deepseek-ai/DeepSeek-V4-Flash)
 
 ## Start vLLM
 
@@ -107,13 +159,15 @@ vllm serve /srv/data2/g00806422/model_weights \
   --gpu-memory-utilization 0.90
 ```
 
-Do not add `--language-model-only`; this service must keep the vision encoder
-enabled.
+Do not add `--language-model-only` to the Qwen profile; it must keep the vision
+encoder enabled. DeepSeek is text-only by architecture and needs no equivalent
+flag.
 
-`DEFAULT_CHAT_TEMPLATE_KWARGS` disables Qwen thinking mode server-wide. This is
-useful for OpenAI-compatible clients that cannot attach Qwen-specific
-`chat_template_kwargs` to each request. Without it, the model may return
-thinking text in the `reasoning` field while `message.content` stays empty.
+`DEFAULT_CHAT_TEMPLATE_KWARGS` enables Qwen thinking mode server-wide. This is
+useful for OpenAI-compatible clients that do not attach Qwen-specific
+`chat_template_kwargs` to each request. Give the model enough output tokens for
+both reasoning and the final answer; otherwise `message.content` may remain
+empty while the response contains reasoning.
 
 ## OpenCode Tool Calling
 
@@ -147,6 +201,35 @@ The resulting vLLM command includes:
 
 ```bash
 --enable-auto-tool-choice --tool-call-parser hermes
+```
+
+The DeepSeek profile already enables automatic tool choice and selects the
+`deepseek_v4` parser. Register it in OpenCode as an OpenAI-compatible provider:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "local-vllm/deepseek-v4-flash-0731",
+  "provider": {
+    "local-vllm": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Local vLLM",
+      "options": {
+        "baseURL": "http://127.0.0.1:18000/v1",
+        "apiKey": "EMPTY"
+      },
+      "models": {
+        "deepseek-v4-flash-0731": {
+          "name": "DeepSeek V4 Flash 0731",
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          }
+        }
+      }
+    }
+  }
+}
 ```
 
 Verify tool-call parsing without OpenCode:
@@ -211,11 +294,13 @@ bash scripts/start_server.sh stop
 bash scripts/healthcheck.sh
 python scripts/probe_text.py
 python scripts/probe_image.py --image /path/to/test.png
+python scripts/probe_tool_call.py
 ```
 
 `probe_image.py` sends an OpenAI-compatible multimodal message with an inline
 base64 data URL. This is the same message shape the Host should use for
-BEHAVIOR observations.
+BEHAVIOR observations. Do not run the image probes against the text-only
+DeepSeek profile.
 
 ## OpenCode Image Understanding Tool
 
@@ -264,22 +349,23 @@ python vlm-server/scripts/test_remote_server.py \
   --image /path/to/test.png
 ```
 
-The remote test script disables Qwen thinking mode by default with:
+The remote test script enables Qwen thinking mode by default with:
 
 ```json
-{"chat_template_kwargs": {"enable_thinking": false}}
+{"chat_template_kwargs": {"enable_thinking": true}}
 ```
 
-Without this, Qwen3.5 may return only the OpenAI-compatible `reasoning` field
-while `content` is still `null`, especially when `max_tokens` is too small for
-both reasoning and the final answer. To test reasoning mode explicitly, pass:
+Qwen3.5 may return only the OpenAI-compatible `reasoning` field while `content`
+is still `null` when `max_tokens` is too small for both reasoning and the final
+answer. Increase the token budget:
 
 ```bash
 python vlm-server/scripts/test_remote_server.py \
   --base-url http://<vlm-server-ip>:8000/v1 \
-  --enable-thinking \
   --max-tokens 2048
 ```
+
+To test without thinking, pass `--disable-thinking`.
 
 If the client/Host server reaches the H100 server through SSH, keep vLLM bound
 to the H100 machine and open a local tunnel from the client:

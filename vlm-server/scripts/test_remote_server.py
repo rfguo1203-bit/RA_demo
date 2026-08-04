@@ -54,8 +54,7 @@ def print_choice(label: str, response: dict) -> None:
     if message.get("content") is None and message.get("reasoning"):
         print(
             "note: content is null because the model returned reasoning without a "
-            "final answer. Use the default thinking-disabled mode or increase "
-            "--max-tokens when --enable-thinking is set."
+            "final answer. Increase --max-tokens or retry with --disable-thinking."
         )
 
 
@@ -76,11 +75,11 @@ def main() -> int:
     parser.add_argument("--api-key", default="EMPTY")
     parser.add_argument("--image", help="Optional local image path for VLM test.")
     parser.add_argument("--timeout", type=int, default=180)
-    parser.add_argument("--max-tokens", type=int, default=512)
+    parser.add_argument("--max-tokens", type=int, default=2048)
     parser.add_argument(
-        "--enable-thinking",
+        "--disable-thinking",
         action="store_true",
-        help="Enable Qwen thinking/reasoning mode. Disabled by default for probes.",
+        help="Disable Qwen thinking/reasoning mode. Enabled by default for probes.",
     )
     args = parser.parse_args()
 
@@ -103,7 +102,7 @@ def main() -> int:
                 "temperature": 0.0,
                 "max_tokens": args.max_tokens,
             },
-            args.enable_thinking,
+            not args.disable_thinking,
         )
         text_response = post_json(
             f"{base_url}/chat/completions",
@@ -135,7 +134,7 @@ def main() -> int:
                     "temperature": 0.0,
                     "max_tokens": args.max_tokens,
                 },
-                args.enable_thinking,
+                not args.disable_thinking,
             )
             image_response = post_json(
                 f"{base_url}/chat/completions",

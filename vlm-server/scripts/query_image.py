@@ -125,7 +125,7 @@ def parse_args() -> argparse.Namespace:
         help="Bearer token (default: VLLM_API_KEY or EMPTY).",
     )
     parser.add_argument("--timeout", type=int, default=180, help="Request timeout in seconds.")
-    parser.add_argument("--max-tokens", type=int, default=1024, help="Maximum output tokens.")
+    parser.add_argument("--max-tokens", type=int, default=2048, help="Maximum output tokens.")
     parser.add_argument("--temperature", type=float, default=0.0, help="Sampling temperature.")
     parser.add_argument(
         "--disable-thinking",
